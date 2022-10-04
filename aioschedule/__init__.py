@@ -44,12 +44,17 @@ Usage:
 [3] https://adam.herokuapp.com/past/2010/6/30/replace_cron_with_clockwork/
 """
 import asyncio
-import collections
 import datetime
 import functools
 import logging
 import random
 import time
+
+import sys
+if sys.version_info.minor < 10:
+    import collections
+else:
+    import collections.abc as collections
 
 logger = logging.getLogger('schedule')
 
