@@ -44,9 +44,9 @@ Usage
     import aioschedule as schedule
     import time
 
-    async def job(message='stuff', n=1):
+    async def job(message: str = 'stuff', n: int = 1):
         print("Asynchronous invocation (%s) of I'm working on:" % n, message)
-        asyncio.sleep(1)
+        await asyncio.sleep(1)
 
     for i in range(1,3):
         schedule.every(1).seconds.do(job, n=i)
