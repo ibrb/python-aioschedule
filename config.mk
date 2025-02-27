@@ -13,7 +13,7 @@ PROJECT_KIND=package
 PROJECT_SCOPE=parent
 
 # The Python version to use.
-PYTHON_VERSION = 3.11
+PYTHON_VERSION = 3.10
 
 # Tables to truncate when invoking `make dbtruncate`, separated by a space.
 #RDBMS_TRUNCATE=
