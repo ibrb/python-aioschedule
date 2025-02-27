@@ -30,8 +30,8 @@ if os.path.exists(os.path.join(curdir, 'README.md')):
         opts['long_description_content_type'] = "text/markdown"
 
 setup(
-    name='canonical',
+    name='aioschedule',
     version=version,
-    packages=find_namespace_packages(),
+    packages=['aioschedule'],
     include_package_data=True,
     **opts)

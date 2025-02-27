@@ -44,12 +44,17 @@ Usage:
 [3] https://adam.herokuapp.com/past/2010/6/30/replace_cron_with_clockwork/
 """
 import asyncio
-from collections.abc import Hashable
 import datetime
 import functools
 import logging
 import random
-import time
+import warnings
+
+from typing import cast
+from typing import Any
+from typing import Awaitable
+from typing import Callable
+
 
 logger = logging.getLogger('schedule')
 
@@ -67,10 +72,16 @@ class Scheduler(object):
     factories to create jobs, keep record of scheduled jobs and
     handle their execution.
     """
+    jobs: list['Job']
+
     def __init__(self):
         self.jobs = []
 
-    async def run_pending(self, *args, **kwargs):
+    async def run_pending(
+        self,
+        *args: Any,
+        **kwargs: Any
+    ) -> tuple[list[asyncio.Future[Any]], list[asyncio.Future[Any]]]:
         """Run all jobs that are scheduled to run.
 
         Please note that it is *intended behavior that run_pending()
@@ -79,75 +90,83 @@ class Scheduler(object):
         in one hour increments then your job won't be run 60 times in
         between but only once.
 
-		*timeout* can be used to control the maximum number of seconds to wait before
-		returning.  *timeout* can be an int or float.  If *timeout* is not specified
-		or ``None``, there is no limit to the wait time.
+        *timeout* can be used to control the maximum number of seconds to wait before
+        returning.  *timeout* can be an int or float.  If *timeout* is not specified
+        or ``None``, there is no limit to the wait time.
 
-		*return_when* indicates when this function should return.  It must be one of
-		the following constants:
+        *return_when* indicates when this function should return.  It must be one of
+        the following constants:
 
-		.. tabularcolumns:: |l|L|
+        .. tabularcolumns:: |l|L|
 
-		+-----------------------------+----------------------------------------+
-		| Constant                    | Description                            |
-		+=============================+========================================+
-		| :const:`FIRST_COMPLETED`    | The function will return when any      |
-		|                             | future finishes or is cancelled.       |
-		+-----------------------------+----------------------------------------+
-		| :const:`FIRST_EXCEPTION`    | The function will return when any      |
-		|                             | future finishes by raising an          |
-		|                             | exception.  If no future raises an     |
-		|                             | exception then it is equivalent to     |
-		|                             | :const:`ALL_COMPLETED`.                |
-		+-----------------------------+----------------------------------------+
-		| :const:`ALL_COMPLETED`      | The function will return when all      |
-		|                             | futures finish or are cancelled.       |
-		+-----------------------------+----------------------------------------+
+        +-----------------------------+----------------------------------------+
+        | Constant                    | Description                            |
+        +=============================+========================================+
+        | :const:`FIRST_COMPLETED`    | The function will return when any      |
+        |                             | future finishes or is cancelled.       |
+        +-----------------------------+----------------------------------------+
+        | :const:`FIRST_EXCEPTION`    | The function will return when any      |
+        |                             | future finishes by raising an          |
+        |                             | exception.  If no future raises an     |
+        |                             | exception then it is equivalent to     |
+        |                             | :const:`ALL_COMPLETED`.                |
+        +-----------------------------+----------------------------------------+
+        | :const:`ALL_COMPLETED`      | The function will return when all      |
+        |                             | futures finish or are cancelled.       |
+        +-----------------------------+----------------------------------------+
         """
-        jobs = [asyncio.create_task(job.run()) for job in self.jobs if job.should_run]
+        jobs: list[asyncio.Task[Any]] = [
+            asyncio.create_task(job.run())
+            for job in self.jobs if job.should_run
+        ]
         if not jobs:
             return [], []
 
         return await asyncio.wait(jobs, *args, **kwargs)
 
-    async def run_all(self, delay_seconds=0, *args, **kwargs):
+    async def run_all(
+        self,
+        delay_seconds: int = 0,
+        *args: Any,
+        **kwargs: Any
+    ):
         """Run all jobs regardless if they are scheduled to run or not.
 
-		*timeout* can be used to control the maximum number of seconds to wait before
-		returning.  *timeout* can be an int or float.  If *timeout* is not specified
-		or ``None``, there is no limit to the wait time.
+        *timeout* can be used to control the maximum number of seconds to wait before
+        returning.  *timeout* can be an int or float.  If *timeout* is not specified
+        or ``None``, there is no limit to the wait time.
 
-		*return_when* indicates when this function should return.  It must be one of
-		the following constants:
+        *return_when* indicates when this function should return.  It must be one of
+        the following constants:
 
-		.. tabularcolumns:: |l|L|
+        .. tabularcolumns:: |l|L|
 
-		+-----------------------------+----------------------------------------+
-		| Constant                    | Description                            |
-		+=============================+========================================+
-		| :const:`FIRST_COMPLETED`    | The function will return when any      |
-		|                             | future finishes or is cancelled.       |
-		+-----------------------------+----------------------------------------+
-		| :const:`FIRST_EXCEPTION`    | The function will return when any      |
-		|                             | future finishes by raising an          |
-		|                             | exception.  If no future raises an     |
-		|                             | exception then it is equivalent to     |
-		|                             | :const:`ALL_COMPLETED`.                |
-		+-----------------------------+----------------------------------------+
-		| :const:`ALL_COMPLETED`      | The function will return when all      |
-		|                             | futures finish or are cancelled.       |
-		+-----------------------------+----------------------------------------+
-		"""
+        +-----------------------------+----------------------------------------+
+        | Constant                    | Description                            |
+        +=============================+========================================+
+        | :const:`FIRST_COMPLETED`    | The function will return when any      |
+        |                             | future finishes or is cancelled.       |
+        +-----------------------------+----------------------------------------+
+        | :const:`FIRST_EXCEPTION`    | The function will return when any      |
+        |                             | future finishes by raising an          |
+        |                             | exception.  If no future raises an     |
+        |                             | exception then it is equivalent to     |
+        |                             | :const:`ALL_COMPLETED`.                |
+        +-----------------------------+----------------------------------------+
+        | :const:`ALL_COMPLETED`      | The function will return when all      |
+        |                             | futures finish or are cancelled.       |
+        +-----------------------------+----------------------------------------+
+        """
         if delay_seconds:
             warnings.warn("The `delay_seconds` parameter is deprecated.",
                 DeprecationWarning)
         jobs = [self._run_job(job) for job in self.jobs[:]]
         if not jobs:
-            return [], []
+            return cast(Any, []), cast(Any, [])
 
         return await asyncio.wait(jobs, *args, **kwargs)
 
-    def clear(self, tag=None):
+    def clear(self, tag: str | None = None):
         """
         Deletes scheduled jobs marked with the given tag, or all jobs
         if tag is omitted.
@@ -160,7 +179,7 @@ class Scheduler(object):
         else:
             self.jobs[:] = (job for job in self.jobs if tag not in job.tags)
 
-    def cancel_job(self, job):
+    def cancel_job(self, job: 'Job'):
         """
         Delete a scheduled job.
 
@@ -171,7 +190,7 @@ class Scheduler(object):
         except ValueError:
             pass
 
-    def every(self, interval=1):
+    def every(self, interval: int = 1):
         """
         Schedule a new periodic job.
 
@@ -181,7 +200,7 @@ class Scheduler(object):
         job = Job(interval, self)
         return job
 
-    async def _run_job(self, job):
+    async def _run_job(self, job: 'Job'):
         ret = await job.run()
         if isinstance(ret, CancelJob) or ret is CancelJob:
             self.cancel_job(job)
@@ -193,8 +212,6 @@ class Scheduler(object):
 
         :return: A :class:`~datetime.datetime` object
         """
-        if not self.jobs:
-            return None
         return min(self.jobs).next_run
 
     @property
@@ -223,28 +240,34 @@ class Job(object):
     A job is usually created and returned by :meth:`Scheduler.every`
     method, which also defines its `interval`.
     """
-    def __init__(self, interval, scheduler=None):
+    job_func: Callable[..., Awaitable[Any]]
+    tags: set[str]
+
+    def __init__(self, interval: int, scheduler: Scheduler | None = None):
+        n = datetime.datetime.now()
         self.interval = interval  # pause interval * unit between runs
         self.latest = None  # upper limit to the interval
-        self.job_func = None  # the job job_func to run
         self.unit = None  # time units, e.g. 'minutes', 'hours', ...
         self.at_time = None  # optional time at which this job runs
-        self.last_run = None  # datetime of the last run
-        self.next_run = None  # datetime of the next run
+        self.last_run = n  # datetime of the last run
+        self.next_run = n  # datetime of the next run
         self.period = None  # timedelta between runs, only valid for
         self.start_day = None  # Specific day of the week to start on
         self.tags = set()  # unique set of tags for the job
         self.scheduler = scheduler  # scheduler to register with
 
-    def __lt__(self, other):
+    def __lt__(self, other: 'Job'):
         """
         PeriodicJobs are sortable based on the scheduled time they
         run next.
         """
+        assert self.next_run is not None
+        assert other.next_run is not None
         return self.next_run < other.next_run
 
     def __repr__(self):
-        def format_time(t):
+
+        def format_time(t: datetime.datetime):
             return t.strftime('%Y-%m-%d %H:%M:%S') if t else '[never]'
 
         timestats = '(last run: %s, next run: %s)' % (
@@ -371,7 +394,7 @@ class Job(object):
         self.start_day = 'sunday'
         return self.weeks
 
-    def tag(self, *tags):
+    def tag(self, *tags: set[str]):
         """
         Tags the job with one or more unique indentifiers.
 
@@ -380,12 +403,10 @@ class Job(object):
         :param tags: A unique list of ``Hashable`` tags.
         :return: The invoked job instance
         """
-        if not all(isinstance(tag, Hashable) for tag in tags):
-            raise TypeError('Tags must be hashable')
-        self.tags.update(tags)
+        self.tags.update(*tags)
         return self
 
-    def at(self, time_str):
+    def at(self, time_str: str):
         """
         Schedule the job every day at a specific time.
 
@@ -404,10 +425,10 @@ class Job(object):
         elif self.unit == 'hours':
             hour = 0
         assert 0 <= minute <= 59
-        self.at_time = datetime.time(hour, minute)
+        self.at_time = datetime.time(int(hour), int(minute))
         return self
 
-    def to(self, latest):
+    def to(self, latest: int):
         """
         Schedule the job to run at an irregular (randomized) interval.
 
@@ -422,7 +443,7 @@ class Job(object):
         self.latest = latest
         return self
 
-    def do(self, job_func, *args, **kwargs):
+    def do(self, job_func: Callable[..., Awaitable[Any]], *args: Any, **kwargs: Any):
         """
         Specifies the job_func that should be called every time the
         job runs.
@@ -433,6 +454,7 @@ class Job(object):
         :param job_func: The function to be scheduled
         :return: The invoked job instance
         """
+        assert self.scheduler is not None
         self.job_func = functools.partial(job_func, *args, **kwargs)
         try:
             functools.update_wrapper(self.job_func, job_func)
@@ -446,10 +468,12 @@ class Job(object):
         return self
 
     @property
-    def should_run(self):
+    def should_run(self) -> bool:
         """
         :return: ``True`` if the job should be run now.
         """
+        if self.next_run is None:
+            return True
         return datetime.datetime.now() >= self.next_run
 
     async def run(self):
@@ -497,14 +521,14 @@ class Job(object):
             self.next_run += datetime.timedelta(days_ahead) - self.period
         if self.at_time is not None:
             assert self.unit in ('days', 'hours') or self.start_day is not None
-            kwargs = {
+            kwargs: dict[str, int] = {
                 'minute': self.at_time.minute,
                 'second': self.at_time.second,
                 'microsecond': 0
             }
             if self.unit == 'days' or self.start_day is not None:
                 kwargs['hour'] = self.at_time.hour
-            self.next_run = self.next_run.replace(**kwargs)
+            self.next_run = self.next_run.replace(tzinfo=None, **kwargs)
             # If we are running for the first time, make sure we run
             # at the specified time *today* (or *this hour*) as well
             if not self.last_run:
@@ -530,7 +554,7 @@ default_scheduler = Scheduler()
 jobs = default_scheduler.jobs  # todo: should this be a copy, e.g. jobs()?
 
 
-def every(interval=1):
+def every(interval: int = 1):
     """Calls :meth:`every <Scheduler.every>` on the
     :data:`default scheduler instance <default_scheduler>`.
     """
@@ -544,21 +568,21 @@ async def run_pending():
     await default_scheduler.run_pending()
 
 
-async def run_all(delay_seconds=0):
+async def run_all(delay_seconds: int = 0):
     """Calls :meth:`run_all <Scheduler.run_all>` on the
     :data:`default scheduler instance <default_scheduler>`.
     """
     await default_scheduler.run_all(delay_seconds=delay_seconds)
 
 
-def clear(tag=None):
+def clear(tag: str | None = None):
     """Calls :meth:`clear <Scheduler.clear>` on the
     :data:`default scheduler instance <default_scheduler>`.
     """
     default_scheduler.clear(tag)
 
 
-def cancel_job(job):
+def cancel_job(job: Job):
     """Calls :meth:`cancel_job <Scheduler.cancel_job>` on the
     :data:`default scheduler instance <default_scheduler>`.
     """
