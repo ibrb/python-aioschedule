@@ -1,8 +1,8 @@
 include README.rst
 include HISTORY.rst
 include LICENSE.txt
-
 include test_schedule.py
+include aioschedule/package.json
 
 recursive-exclude * __pycache__
 recursive-exclude * *.py[co]

@@ -1,52 +1,37 @@
-"""
-Publish a new version:
-
-$ git tag X.Y.Z -m "Release X.Y.Z"
-$ git push --tags
-
-$ pip install --upgrade twine wheel
-$ python setup.py sdist bdist_wheel --universal
-$ twine upload dist/*
-"""
-import codecs
+#!/usr/bin/env python3
+#
+# Copyright (C) 2019-2020 Cochise Ruhulessin
+#
+# This file is part of canonical.
+#
+# canonical is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, version 3.
+#
+# canonical is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with canonical.  If not, see <https://www.gnu.org/licenses/>.
+import json
 import os
 import sys
+from setuptools import find_namespace_packages
 from setuptools import setup
 
-
-SCHEDULE_VERSION = '0.5.2'
-SCHEDULE_DOWNLOAD_URL = (
-    'https://github.com/ibrb/python-aioschedule/tarball/' + SCHEDULE_VERSION
-)
-
-def read_file(filename):
-    """
-    Read a utf8 encoded text file and return its contents.
-    """
-    with codecs.open(filename, 'r', 'utf8') as f:
-        return f.read()
+curdir = os.path.abspath(os.path.dirname(__file__))
+version = str.strip(open('VERSION').read())
+opts = json.loads((open('aioschedule/package.json').read()))
+if os.path.exists(os.path.join(curdir, 'README.md')):
+    with open(os.path.join(curdir, 'README.md'), encoding='utf-8') as f:
+        opts['long_description'] = f.read()
+        opts['long_description_content_type'] = "text/markdown"
 
 setup(
-    name='aioschedule',
-    packages=['aioschedule'],
-    version=SCHEDULE_VERSION,
-    description='Job scheduling for humans.',
-    long_description=read_file('README.rst'),
-    license='MIT',
-    author='Daniel Bader, Cochise Ruhulessin',
-    author_email='development@ibrb.io',
-    url='https://github.com/ibrb/python-aioschedule',
-    download_url=SCHEDULE_DOWNLOAD_URL,
-    keywords=[
-        'aioschedule', 'periodic', 'jobs', 'scheduling', 'clockwork',
-        'cron', 'scheduler', 'job scheduling'
-    ],
-    classifiers=[
-        'Intended Audience :: Developers',
-        'License :: OSI Approved :: MIT License',
-        'Programming Language :: Python',
-        'Programming Language :: Python :: 3.5',
-        'Programming Language :: Python :: 3.6',
-        'Natural Language :: English',
-    ],
-)
+    name='canonical',
+    version=version,
+    packages=find_namespace_packages(),
+    include_package_data=True,
+    **opts)
