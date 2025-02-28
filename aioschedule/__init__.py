@@ -164,7 +164,7 @@ class Scheduler(object):
         if not jobs:
             return cast(Any, []), cast(Any, [])
 
-        return await asyncio.wait(jobs, *args, **kwargs)
+        return await asyncio.wait(map(asyncio.create_task, jobs), *args, **kwargs)
 
     def clear(self, tag: str | None = None):
         """
