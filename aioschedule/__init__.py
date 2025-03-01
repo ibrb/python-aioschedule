@@ -164,7 +164,7 @@ class Scheduler(object):
         if not jobs:
             return cast(Any, []), cast(Any, [])
 
-        return await asyncio.wait(map(asyncio.create_task, jobs), *args, **kwargs)
+        return await asyncio.wait(map(asyncio.create_task, jobs), return_when='ALL_COMPLETED')
 
     def clear(self, tag: str | None = None):
         """
@@ -565,14 +565,14 @@ async def run_pending():
     """Calls :meth:`run_pending <Scheduler.run_pending>` on the
     :data:`default scheduler instance <default_scheduler>`.
     """
-    await default_scheduler.run_pending()
+    return await default_scheduler.run_pending()
 
 
 async def run_all(delay_seconds: int = 0):
     """Calls :meth:`run_all <Scheduler.run_all>` on the
     :data:`default scheduler instance <default_scheduler>`.
     """
-    await default_scheduler.run_all(delay_seconds=delay_seconds)
+    return await default_scheduler.run_all(delay_seconds=delay_seconds)
 
 
 def clear(tag: str | None = None):
