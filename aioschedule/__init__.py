@@ -467,6 +467,18 @@ class Job(object):
         self.scheduler.jobs.append(self)
         return self
 
+    def do_schedule(self, *args, **kwargs):
+        def _wrapper(job_func):
+            """
+            Simple decorator for periodic function running
+            :param args: Any. Positional arguments provided to function to be called
+            :param kwargs: Any. Keyword arguments provided to function to be called
+            :return: None
+            """
+
+            self.do(job_func, *args, **kwargs)
+        return _wrapper
+
     @property
     def should_run(self) -> bool:
         """
